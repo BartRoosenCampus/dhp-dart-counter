@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Darts 501 App</title>
+    <link rel="stylesheet" href="css/style.css">
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1f2937">
+
+    <!-- Service Worker Registratie & Update Script -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then((registration) => {
+                        // Controleer of er een nieuwe update klaarstaat
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    // Er is een nieuwe versie beschikbaar, herlaad de pagina automatisch
+                                    window.location.reload();
+                                }
+                            });
+                        });
+                    })
+                    .catch((err) => {
+                        console.log('Service Worker registratie mislukt: ', err);
+                    });
+            });
+        }
+    </script>
+</head>
+<body>
+<div class="app-container">
+    <!-- SCHERM 1: Instellingen & Spelers -->
+    <div id="setup-screen" class="screen active">
+        <header>
+            <h1>🎯 Darts 501</h1>
+            <p>Best of 5 Legs</p>
+        </header>
+        <div class="card">
+            <h2>Spelers & Start</h2>
+            <div class="form-group">
+                <label for="player1-name">Speler 1</label>
+                <input type="text" id="player1-name" value="Speler 1" placeholder="Naam speler 1">
+            </div>
+            <div class="form-group">
+                <label for="player2-name">Speler 2</label>
+                <input type="text" id="player2-name" value="Speler 2" placeholder="Naam speler 2">
+            </div>
+            <div class="form-group">
+                <label>Wie mag er starten in Leg 1?</label>
+                <div class="starter-btn-group">
+                    <button type="button" class="btn starter-choice-btn active" data-starter="0" id="starter-btn-0">Speler 1</button>
+                    <button type="button" class="btn starter-choice-btn" data-starter="1" id="starter-btn-1">Speler 2</button>
+                </div>
+            </div>
+            <button id="start-btn" class="btn btn-primary">Start Wedstrijd</button>
+        </div>
+
+        <div class="card history-card">
+            <h2>Historiek van de Avond</h2>
+            <div id="history-list" class="history-list">
+                <p class="text-muted">Nog geen gespeelde wedstrijden.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCHERM 2: Wedstrijd / Scorebord -->
+    <div id="game-screen" class="screen">
+        <div class="match-header">
+            <div class="leg-status">Leg <span id="current-leg-num">1</span> van 5 (Bo5)</div>
+            <div class="legs-score"><span id="p1-legs">0</span> - <span id="p2-legs">0</span></div>
+        </div>
+
+        <div class="scoreboard">
+            <div id="player0-box" class="player-box active">
+                <div class="player-name" id="display-p1">Speler 1</div>
+                <div class="score-display" id="p1-score">501</div>
+                <div class="player-stats">Pijlen: <span id="p1-darts">0</span></div>
+            </div>
+            <div id="player1-box" class="player-box">
+                <div class="player-name" id="display-p2">Speler 2</div>
+                <div class="score-display" id="p2-score">501</div>
+                <div class="player-stats">Pijlen: <span id="p2-darts">0</span></div>
+            </div>
+        </div>
+
+        <div class="turn-info">
+            Aan de beurt: <strong id="active-player-name">Speler 1</strong> | Laatste worp: <span id="last-throw">-</span>
+        </div>
+
+        <!-- Numeriek Klavier & Invoer -->
+        <div class="numpad-container">
+            <div class="input-preview">
+                Score: <span id="input-buffer">0</span>
+            </div>
+            <div class="numpad">
+                <button class="num-btn" data-val="1">1</button>
+                <button class="num-btn" data-val="2">2</button>
+                <button class="num-btn" data-val="3">3</button>
+                <button class="num-btn" data-val="4">4</button>
+                <button class="num-btn" data-val="5">5</button>
+                <button class="num-btn" data-val="6">6</button>
+                <button class="num-btn" data-val="7">7</button>
+                <button class="num-btn" data-val="8">8</button>
+                <button class="num-btn" data-val="9">9</button>
+                <button class="num-btn action-btn" id="btn-clear">C</button>
+                <button class="num-btn" data-val="0">0</button>
+                <button class="num-btn action-btn" id="btn-backspace">⌫</button>
+            </div>
+            <div class="action-row">
+                <button id="undo-btn" class="btn btn-secondary">Vorige Beurt</button>
+                <button id="submit-score-btn" class="btn btn-success">Bevestig Beurt</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCHERM 3: Overzicht / Einde Wedstrijd -->
+    <div id="summary-screen" class="screen">
+        <header>
+            <h1>🏆 Wedstrijd Gedaan!</h1>
+            <p id="winner-text">Speler X heeft gewonnen!</p>
+        </header>
+        <div class="card">
+            <h2>Overzicht per Leg</h2>
+            <div id="legs-summary-container">
+                <!-- Wordt dynamisch gevuld -->
+            </div>
+            <button id="new-match-btn" class="btn btn-primary">Nieuwe Wedstrijd</button>
+        </div>
+    </div>
+</div>
+
+<!-- POPUP MODAL VOOR CHECKOUT PIJLENSELECTIE -->
+<div id="darts-modal" class="modal-overlay">
+    <div class="modal-content">
+        <h3 id="modal-title">🎯 Uitgooien!</h3>
+        <p id="modal-subtitle" class="text-muted">Hoeveel pijlen had je nodig?</p>
+        <div id="modal-buttons" class="modal-btn-group">
+            <!-- Wordt dynamisch ingevuld -->
+        </div>
+        <button id="modal-cancel" class="btn btn-secondary modal-cancel-btn">Annuleren</button>
+    </div>
+</div>
+
+<script src="js/app.js"></script>
+</body>
+</html>
